@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+python-dotenv
+mysql-connector-python
+sentence-transformers
+numpy
+requests
+pydantic
+pydantic-settings
+openai
+python-multipart
+https://naazz.atlassian.net/jira/software/projects/BTS/boards/1?atlOrigin=eyJpIjoiMGY0NmM4ZTJlOTM4NGY4NWIxYTU4ZDQ0OGZkOGJlYTEiLCJwIjoiaiJ9
+Salesforce-tableau
+epic.5b856ef7eea1@orgfarm.salesforce.com-username
+orgfarm1234-password

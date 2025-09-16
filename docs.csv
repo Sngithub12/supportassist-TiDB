@@ -1,0 +1,11 @@
+Title	Content
+Login Timeout	Check TiDB server connection and client credentials. Verify firewall and latency issues.
+Slow Queries	"Use EXPLAIN ANALYZE, optimize with indexes, and tune TiDB configuration."
+Permission Error	"Verify user privileges, roles, and security settings in TiDB."
+Backup Restore	Use BR or Dumpling/Lightning for backup and restore operations
+Network Config	"Check firewall rules, DNS, and network latency for TiDB connectivity."
+Error 5001	Database internal error; retry the query or escalate if unresolved.
+Schema Mismatch	Ensure application schema matches TiDB cluster schema.
+Disk Space	Check available disk capacity and clean up TiKV or PD logs if necessary.
+Upgrade Issues	Review TiDB upgrade notes and verify cluster compatibility.
+TLS Error	Validate certificates and ensure TiDB is configured for secure connections.
