@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SupportAssist Chat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #0b1220; --panel:#0f172a; --accent:#22d3ee; }
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: linear-gradient(180deg, #0b1220 0%, #0a0f1c 100%); }
+    .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); }
+    .msg { animation: fadeIn 260ms ease-out both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: translateY(0);} }
+    .dot { animation: blink 1.2s infinite; }
+    .dot:nth-child(2){ animation-delay:.15s } .dot:nth-child(3){ animation-delay:.3s }
+    @keyframes blink { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+    a.source { text-decoration: underline; text-underline-offset: 3px; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-200">
+  <div class="max-w-5xl mx-auto px-4 py-8">
+    <header class="flex items-center gap-3 mb-6">
+      <div class="h-10 w-10 rounded-2xl bg-cyan-400/20 flex items-center justify-center border border-cyan-400/30">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="h-5 w-5 text-cyan-300"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v12m6-6H6"/></svg>
+      </div>
+      <div>
+        <h1 class="text-xl font-semibold">SupportAssist</h1>
+        <p class="text-sm text-slate-400">Ask questions about your knowledge base</p>
+      </div>
+      <div class="ml-auto text-xs text-slate-400">API: <span id="apiStatus" class="text-yellow-300">checking…</span></div>
+    </header>
+
+     <label for="llm">Select LLM Provider:</label>
+<select id="llm" class="text-black" onchange="switchLLM()">
+  <option value="gemini">Gemini</option>
+  <option value="openai">OpenAI</option>
+  <option value="ollama">Ollama</option>
+</select>
+
+
+  <br><br>
+ 
+
+    <main id="chat" class="glass rounded-3xl border border-white/10 shadow-xl p-4 sm:p-6 min-h-[60vh] flex flex-col">
+      <div id="messages" class="flex-1 overflow-y-auto space-y-4 pr-1">
+        <div class="msg flex items-start gap-3">
+          <div class="shrink-0 h-8 w-8 rounded-xl bg-cyan-400/20 border border-cyan-300/30 flex items-center justify-center">💡</div>
+          <div class="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 max-w-[80%]">
+            <p class="text-slate-300">Hi! I can search your TiDB knowledge base and draft answers. Try: <span class="text-slate-100 font-medium">“login timeout issue”</span></p>
+          </div>
+        </div>
+      </div>
+
+      <form id="form" class="mt-4 flex items-end gap-2">
+        <div class="relative flex-1">
+          <textarea id="input" rows="1" placeholder="Type your question…" class="w-full resize-none rounded-2xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 px-4 py-3 placeholder:text-slate-500"></textarea>
+          <div id="thinking" class="hidden absolute right-3 bottom-2 text-slate-400 text-sm"> <span class="dot">●</span> <span class="dot">●</span> <span class="dot">●</span> </div>
+        </div>
+        <button id="send" class="rounded-2xl px-4 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold shadow-lg shadow-cyan-500/20 disabled:opacity-40 disabled:cursor-not-allowed">Send</button>
+      </form>
+    </main>
+
+    <footer class="mt-6 text-center text-xs text-slate-500">Built on FastAPI + TiDB + embeddings</footer>
+  </div>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:8000"; // adjust if backend runs elsewhere
+    async function switchLLM() {
+      const provider = document.getElementById("llm").value;
+      await fetch("http://127.0.0.1:8000/set_llm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(provider)
+      });
+    }
+
+    async function checkHealth(){
+      const el=document.getElementById('apiStatus');
+      try{
+        const res=await fetch(`${API_BASE}/health`);
+        const data=await res.json();
+        if (data.ok){
+          if (data.db_connected){
+            el.textContent='online';
+            el.className='text-emerald-300';
+          } else {
+            el.textContent='fallback mode';
+            el.className='text-yellow-300';
+          }
+        } else {
+          el.textContent='offline';
+          el.className='text-rose-300';
+        }
+      }catch{
+        el.textContent='offline';
+        el.className='text-rose-300';
+      }
+    }
+     let confHtml = `<p><b>Confidence:</b> ${data.confidence}%</p>`;
+      
+      document.getElementById("answer").innerHTML = `
+        ${confHtml}
+        <pre>${data.answer}</pre>
+      `;
+    }
+    function formatAnswer(answer){
+      const lines=answer.split("\n").filter(Boolean);
+      return lines.map(l=>{
+        if(l.startsWith("Summary:")) return `<p><b>Summary:</b> ${l.replace("Summary:","").trim()}</p>`;
+        if(l.startsWith("Recommended Action:")) return `<p><b>Recommended Action:</b> ${l.replace("Recommended Action:","").trim()}</p>`;
+        if(l.startsWith("Ticket Title:")) return `<p><b>Ticket Title:</b> ${l.replace("Ticket Title:","").trim()}</p>`;
+        return `<p>${l}</p>`;
+      }).join("");
+    }
+
+    function addMessage(role, text, sources, ticketTitle=null){
+      const wrap=document.createElement('div');
+      wrap.className='msg flex flex-col gap-2';
+
+      const row=document.createElement('div');
+      row.className='flex items-start gap-3';
+
+      const avatar=document.createElement('div');
+      avatar.className='shrink-0 h-8 w-8 rounded-xl flex items-center justify-center';
+      avatar.textContent=role==='user'?'🧑':'🤖';
+
+      const bubble=document.createElement('div');
+      bubble.className='bg-white/5 border border-white/10 rounded-2xl px-4 py-3 max-w-[80%] whitespace-pre-wrap';
+      bubble.innerHTML=(role==='assistant')?formatAnswer(text):text;
+
+      row.appendChild(avatar); row.appendChild(bubble);
+      wrap.appendChild(row);
+
+      // sources
+      if (sources && sources.length){
+        const s=document.createElement('div');
+        s.className='ml-11 text-xs text-slate-400';
+        s.innerHTML='Sources: ' + sources.map(r=>`<span>#${r.id} ${r.title||''}</span>`).join(' · ');
+        wrap.appendChild(s);
+      }
+
+      // action buttons
+      if (role==='assistant'){
+        const btnRow=document.createElement('div');
+        btnRow.className='ml-11 flex gap-2 mt-2';
+
+        const slackBtn=document.createElement('button');
+        slackBtn.className='px-3 py-1 bg-blue-400 hover:bg-blue-300 text-black text-xs rounded';
+        slackBtn.innerText='Send to Slack';
+        slackBtn.onclick=()=>triggerAction('slack', text, ticketTitle);
+
+        const jiraBtn=document.createElement('button');
+        jiraBtn.className='px-3 py-1 bg-orange-400 hover:bg-orange-300 text-black text-xs rounded';
+        jiraBtn.innerText='Create Jira Ticket';
+        jiraBtn.onclick=()=>triggerAction('jira', text, ticketTitle);
+
+        btnRow.appendChild(slackBtn);
+        btnRow.appendChild(jiraBtn);
+        wrap.appendChild(btnRow);
+      }
+
+      document.getElementById('messages').appendChild(wrap);
+      wrap.scrollIntoView({behavior:'smooth',block:'end'});
+    }
+   
+    async function triggerAction(type, answer, ticketTitle){
+      try{
+        const res=await fetch(`${API_BASE}/query`,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            text: ticketTitle || answer,
+            create_action:true,
+            action_type:type
+          })
+        });
+        const data=await res.json();
+        alert(`${type} action result: ${JSON.stringify(data.action_result)}`);
+      }catch(err){
+        alert(`Failed to send to ${type}: ${err}`);
+      }
+    }
+
+    const form=document.getElementById('form');
+    const input=document.getElementById('input');
+    const thinking=document.getElementById('thinking');
+    const send=document.getElementById('send');
+
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const q=input.value.trim();
+      if(!q) return;
+      addMessage('user', q);
+      input.value=''; send.disabled=true; thinking.classList.remove('hidden');
+
+      try{
+        const res=await fetch(`${API_BASE}/query`,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ text:q })
+        });
+        if(!res.ok) throw new Error('API error');
+        const data=await res.json();
+        const answer=data.answer || '(no answer)';
+        const sources=(data.sources||[]).map(x=>({id:x.id,title:x.title}));
+        addMessage('assistant', answer, sources, data.ticket_title || null);
+      }catch(err){
+        addMessage('assistant','Sorry, I could not reach the API.');
+      }finally{
+        send.disabled=false; thinking.classList.add('hidden');
+      }
+    });
+
+    // auto-resize textarea
+    input.addEventListener('input', ()=>{ input.style.height='auto'; input.style.height=input.scrollHeight+'px'; });
+async function askQuestion() {
+  const query = document.getElementById("query").value;
+  const resp = await fetch("http://127.0.0.1:8000/query", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: query })
+  });
+  const data = await resp.json();
+
+  document.getElementById("answer").innerHTML = `
+    <p><b>Confidence:</b> ${data.confidence}%</p>
+    <pre>${data.answer}</pre>
+  `;
+}
+
+
+    checkHealth();
+  </script>
+</body>
+</html>
+
